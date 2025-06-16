@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>お経表示アプリ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: sans-serif; padding: 1em; }
+    .line { padding: 5px; font-size: 16px; }
+    .current { background: yellow; font-weight: bold; }
+    .kanji { font-size: 32px; color: blue; margin-top: 10px; }
+    button { margin-right: 5px; }
+  </style>
+</head>
+<body>
+  <h1>お経表示アプリ</h1>
+  
+  <!-- お経テキスト（各行を div として表示） -->
+  <div id="scripture">
+    {% for line in lines %}
+      <div class="line" id="line-{{ loop.index0 }}">{{ line }}</div>
+    {% endfor %}
+  </div>
+  
+  <!-- 漢字版の表示 -->
+  <div id="kanji" class="kanji"></div>
+  
+  <!-- 操作ボタン -->
+  <div>
+    <button onclick="backLine()">Back (前へ)</button>
+    <button onclick="nextLine()">Next (次へ)</button>
+    <button onclick="resetLine()">先頭に戻す</button>
+  </div>
+
+  <script>
+    // 現在のインデックスはサーバーから取得した値を初期値として使用
+    let currentIndex = {{ current_index }};
+    const totalLines = {{ lines|length }};
+    const kanjiArray = {{ kanji_lines|tojson }};
+    
+    // 指定の行にハイライト・スクロールさせる関数
+    function updateHighlight(index) {
+      // 全行から current クラスを除去
+      document.querySelectorAll('.line').forEach(el => el.classList.remove('current'));
+      const lineEl = document.getElementById('line-' + index);
+      if (lineEl) {
+        lineEl.classList.add('current');
+        // 3行目付近に表示するため、スクロール（center オプションで中央寄り）
+        lineEl.scrollIntoView({block: "center", behavior: "smooth"});
+      }
+      // 漢字版テキストの更新
+      document.getElementById('kanji').innerText = kanjiArray[index] || "";
+    }
+    
+    // API 呼び出し例: 次の行へ
+    function nextLine() {
+      fetch('/next', {method: 'POST'})
+        .then(response => response.json())
+        .then(data => {
+          currentIndex = data.current_index;
+          updateHighlight(currentIndex);
+        });
+    }
+    
+    function backLine() {
+      fetch('/back', {method: 'POST'})
+        .then(response => response.json())
+        .then(data => {
+          currentIndex = data.current_index;
+          updateHighlight(currentIndex);
+        });
+    }
+    
+    function resetLine() {
+      fetch('/reset', {method: 'POST'})
+        .then(response => response.json())
+        .then(data => {
+          currentIndex = data.current_index;
+          updateHighlight(currentIndex);
+        });
+    }
+    
+    // 自動進行の例：一定時間ごとに次の行へ
+    setInterval(() => {
+      // ※ 一時停止機能などはさらに実装可能
+      if (currentIndex < totalLines - 1) {
+        nextLine();
+      }
+    }, 1150);  // 自動進行速度(ms)
+    
+    // 初期ハイライト
+    updateHighlight(currentIndex);
+  </script>
+</body>
+</html>
